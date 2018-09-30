@@ -67,13 +67,18 @@ func main() {
 		}
 
 	case "list":
-		setName := ""
-		log.Println(args)
-		if len(args) > 0 {
-			setName = args[0]
+		if len(args) != 1 {
+			panic("invalid arguments")
 		}
 
-		result, err := netlink.IpsetList(setName)
+		result, err := netlink.IpsetList(args[0])
+		if err != nil {
+			panic(err)
+		}
+		log.Printf("%+v", result)
+
+	case "listall":
+		result, err := netlink.IpsetListAll()
 		if err != nil {
 			panic(err)
 		}
