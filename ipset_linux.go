@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// IPSetEntry is used for adding, updating, retreiving and deleting entries
 type IPSetEntry struct {
 	Comment string
 	MAC     net.HardwareAddr
@@ -20,6 +21,7 @@ type IPSetEntry struct {
 	Replace bool // replace existing entry
 }
 
+// IPSetResult is the result of a dump request for a set
 type IPSetResult struct {
 	Nfgenmsg *nl.Nfgenmsg
 	Protocol uint8
@@ -34,16 +36,13 @@ type IPSetResult struct {
 	MaxElements  uint32
 	References   uint32
 	SizeInMemory uint32
-	Timeout      uint32
 	CadtFlags    uint32
+	Timeout      *uint32
 
 	Entries []IPSetEntry
 }
 
-func IpsetProtocol() (uint8, error) {
-	return pkgHandle.IpsetProtocol()
-}
-
+// IpsetCreateOptions is the options struct for creating a new ipset
 type IpsetCreateOptions struct {
 	Replace  bool // replace existing ipset
 	Timeout  *uint32
@@ -52,22 +51,42 @@ type IpsetCreateOptions struct {
 	Skbinfo  bool
 }
 
+// IpsetProtocol returns the ipset protocol version from the kernel
+func IpsetProtocol() (uint8, error) {
+	return pkgHandle.IpsetProtocol()
+}
+
+// IpsetCreate creates a new ipset
 func IpsetCreate(setname, typename string, options IpsetCreateOptions) error {
 	return pkgHandle.IpsetCreate(setname, typename, options)
 }
 
+// IpsetDestroy destroys an existing ipset
 func IpsetDestroy(setname string) error {
 	return pkgHandle.IpsetDestroy(setname)
 }
 
-func IpsetList(setname string) ([]IPSetResult, error) {
+// IpsetFlush flushes an existing ipset
+func IpsetFlush(setname string) error {
+	return pkgHandle.IpsetFlush(setname)
+}
+
+// IpsetList dumps an specific ipset.
+func IpsetList(setname string) (*IPSetResult, error) {
 	return pkgHandle.IpsetList(setname)
 }
 
+// IpsetListAll dumps all ipsets.
+func IpsetListAll() ([]IPSetResult, error) {
+	return pkgHandle.IpsetListAll()
+}
+
+// IpsetAdd adds an entry to an existing ipset.
 func IpsetAdd(setname string, entry *IPSetEntry) error {
 	return pkgHandle.ipsetAddDel(nl.IPSET_CMD_ADD, setname, entry)
 }
 
+// IpsetDele deletes an entry from an existing ipset.
 func IpsetDel(setname string, entry *IPSetEntry) error {
 	return pkgHandle.ipsetAddDel(nl.IPSET_CMD_DEL, setname, entry)
 }
@@ -129,19 +148,35 @@ func (h *Handle) IpsetDestroy(setname string) error {
 	return err
 }
 
-func (h *Handle) IpsetList(name string) ([]IPSetResult, error) {
-	req := h.newIpsetRequest(nl.IPSET_CMD_LIST)
+func (h *Handle) IpsetFlush(setname string) error {
+	req := h.newIpsetRequest(nl.IPSET_CMD_FLUSH)
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
+	_, err := ipsetExecute(req)
+	return err
+}
 
-	if name != "" {
-		req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(name)))
-	}
+func (h *Handle) IpsetList(name string) (*IPSetResult, error) {
+	req := h.newIpsetRequest(nl.IPSET_CMD_LIST)
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(name)))
 
 	msgs, err := ipsetExecute(req)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []IPSetResult
+	result := ipsetUnserialize(msgs[0])
+	return &result, nil
+}
+
+func (h *Handle) IpsetListAll() ([]IPSetResult, error) {
+	req := h.newIpsetRequest(nl.IPSET_CMD_LIST)
+
+	msgs, err := ipsetExecute(req)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]IPSetResult, len(msgs))
 	for _, msg := range msgs {
 		result = append(result, ipsetUnserialize(msg))
 	}
@@ -220,7 +255,7 @@ func ipsetUnserialize(msg []byte) (result IPSetResult) {
 		case nl.IPSET_ATTR_ADT | nl.NLA_F_NESTED:
 			result.parseAttrADT(attr.Value)
 		default:
-			log.Println("unknown type", attr.Type)
+			log.Printf("unknown ipset attribute from kernel: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
 		}
 	}
 
@@ -235,7 +270,8 @@ func (result *IPSetResult) parseAttrData(data []byte) {
 		case nl.IPSET_ATTR_MAXELEM | nl.NLA_F_NET_BYTEORDER:
 			result.MaxElements = attr.Uint32()
 		case nl.IPSET_ATTR_TIMEOUT | nl.NLA_F_NET_BYTEORDER:
-			result.Timeout = attr.Uint32()
+			val := attr.Uint32()
+			result.Timeout = &val
 		case nl.IPSET_ATTR_ELEMENTS | nl.NLA_F_NET_BYTEORDER:
 			result.NumEntries = attr.Uint32()
 		case nl.IPSET_ATTR_REFERENCES | nl.NLA_F_NET_BYTEORDER:
@@ -245,7 +281,7 @@ func (result *IPSetResult) parseAttrData(data []byte) {
 		case nl.IPSET_ATTR_CADT_FLAGS | nl.NLA_F_NET_BYTEORDER:
 			result.CadtFlags = attr.Uint32()
 		default:
-			log.Printf("unknown ipset attribute: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
+			log.Printf("unknown ipset data attribute from kernel: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
 		}
 	}
 }
@@ -256,7 +292,7 @@ func (result *IPSetResult) parseAttrADT(data []byte) {
 		case nl.IPSET_ATTR_DATA | nl.NLA_F_NESTED:
 			result.Entries = append(result.Entries, parseIPSetEntry(attr.Value))
 		default:
-			log.Printf("unknown ADT attribute: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
+			log.Printf("unknown ADT attribute from kernel: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
 		}
 	}
 }
@@ -277,11 +313,11 @@ func parseIPSetEntry(data []byte) (entry IPSetEntry) {
 				case nl.IPSET_ATTR_IP:
 					entry.IP = net.IP(attr.Value)
 				default:
-					log.Printf("unknown nested ADT attribute: %+v", attr)
+					log.Printf("unknown nested ADT attribute from kernel: %+v", attr)
 				}
 			}
 		default:
-			log.Printf("unknown ADT attribute: %+v", attr)
+			log.Printf("unknown ADT attribute from kernel: %+v", attr)
 		}
 	}
 	return
