@@ -45,6 +45,7 @@ const (
 	NTF_ROUTER = 0x80
 )
 
+// Ndmsg is for adding, removing or receiving information about a neighbor table entry
 type Ndmsg struct {
 	Family uint8
 	Index  uint32
@@ -176,40 +177,47 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 	return err
 }
 
-// NeighList gets a list of IP-MAC mappings in the system (ARP table).
+// NeighList returns a list of IP-MAC mappings in the system (ARP table).
 // Equivalent to: `ip neighbor show`.
 // The list can be filtered by link and ip family.
 func NeighList(linkIndex, family int) ([]Neigh, error) {
 	return pkgHandle.NeighList(linkIndex, family)
 }
 
-// NeighProxyList gets a list of neighbor proxies in the system.
+// NeighProxyList returns a list of neighbor proxies in the system.
 // Equivalent to: `ip neighbor show proxy`.
 // The list can be filtered by link and ip family.
 func NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 	return pkgHandle.NeighProxyList(linkIndex, family)
 }
 
-// NeighList gets a list of IP-MAC mappings in the system (ARP table).
+// NeighListFiltered returns a list of neighbour entries filtered by link, ip family, flag and state.
+func NeighListFiltered(linkIndex, family, flags, state int) ([]Neigh, error) {
+	return pkgHandle.NeighListFiltered(linkIndex, family, flags, state)
+}
+
+// NeighList returns a list of IP-MAC mappings in the system (ARP table).
 // Equivalent to: `ip neighbor show`.
 // The list can be filtered by link and ip family.
 func (h *Handle) NeighList(linkIndex, family int) ([]Neigh, error) {
-	return h.neighList(linkIndex, family, 0)
+	return h.NeighListFiltered(linkIndex, family, 0, 0)
 }
 
-// NeighProxyList gets a list of neighbor proxies in the system.
+// NeighProxyList returns a list of neighbor proxies in the system.
 // Equivalent to: `ip neighbor show proxy`.
 // The list can be filtered by link, ip family.
 func (h *Handle) NeighProxyList(linkIndex, family int) ([]Neigh, error) {
-	return h.neighList(linkIndex, family, NTF_PROXY)
+	return h.NeighListFiltered(linkIndex, family, NTF_PROXY, 0)
 }
 
-func (h *Handle) neighList(linkIndex, family, flags int) ([]Neigh, error) {
+// NeighListFiltered returns a list of neighbour entries filtered by link, ip family, flag and state.
+func (h *Handle) NeighListFiltered(linkIndex, family, flags, state int) ([]Neigh, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETNEIGH, unix.NLM_F_DUMP)
 	msg := Ndmsg{
 		Family: uint8(family),
 		Index:  uint32(linkIndex),
 		Flags:  uint8(flags),
+		State:  uint16(state),
 	}
 	req.AddData(&msg)
 
