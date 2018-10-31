@@ -15,8 +15,8 @@ type IPSetEntry struct {
 	MAC     net.HardwareAddr
 	IP      net.IP
 	Timeout *uint32
-	Packets *uint32
-	Bytes   *uint32
+	Packets *uint64
+	Bytes   *uint64
 
 	Replace bool // replace existing entry
 }
@@ -303,6 +303,12 @@ func parseIPSetEntry(data []byte) (entry IPSetEntry) {
 		case nl.IPSET_ATTR_TIMEOUT | nl.NLA_F_NET_BYTEORDER:
 			val := attr.Uint32()
 			entry.Timeout = &val
+		case nl.IPSET_ATTR_BYTES | nl.NLA_F_NET_BYTEORDER:
+			val := attr.Uint64()
+			entry.Bytes = &val
+		case nl.IPSET_ATTR_PACKETS | nl.NLA_F_NET_BYTEORDER:
+			val := attr.Uint64()
+			entry.Packets = &val
 		case nl.IPSET_ATTR_ETHER:
 			entry.MAC = net.HardwareAddr(attr.Value)
 		case nl.IPSET_ATTR_COMMENT:
