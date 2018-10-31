@@ -192,7 +192,7 @@ func NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 }
 
 // NeighListFiltered returns a list of neighbour entries filtered by link, ip family, flag and state.
-func NeighListFiltered(linkIndex, family, flags, state int) ([]Neigh, error) {
+func NeighListFiltered(linkIndex, family, flags int, state uint16) ([]Neigh, error) {
 	return pkgHandle.NeighListFiltered(linkIndex, family, flags, state)
 }
 
@@ -211,13 +211,13 @@ func (h *Handle) NeighProxyList(linkIndex, family int) ([]Neigh, error) {
 }
 
 // NeighListFiltered returns a list of neighbour entries filtered by link, ip family, flag and state.
-func (h *Handle) NeighListFiltered(linkIndex, family, flags, state int) ([]Neigh, error) {
+func (h *Handle) NeighListFiltered(linkIndex, family, flags int, state uint16) ([]Neigh, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETNEIGH, unix.NLM_F_DUMP)
 	msg := Ndmsg{
 		Family: uint8(family),
 		Index:  uint32(linkIndex),
 		Flags:  uint8(flags),
-		State:  uint16(state),
+		State:  state,
 	}
 	req.AddData(&msg)
 
