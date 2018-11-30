@@ -848,6 +848,32 @@ func (gtp *GTP) Type() string {
 	return "gtp"
 }
 
+type Ip6tun struct {
+	LinkAttrs
+	Ttl        uint8
+	Link       uint32
+	Local      net.IP
+	Remote     net.IP
+	EncapSport uint16
+	EncapDport uint16
+	EncapType  uint16
+	EncapFlags uint16
+	FlowBased  bool
+	Protocol   *uint8
+}
+
+func (ip6tun *Ip6tun) Attrs() *LinkAttrs {
+	return &ip6tun.LinkAttrs
+}
+
+func (ip6tun *Ip6tun) Type() string {
+	return "ip6tnl"
+}
+
+func (ip6tun *Ip6tun) SetProtocol(value uint8) {
+	ip6tun.Protocol = &value
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |

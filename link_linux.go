@@ -1190,6 +1190,8 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addBridgeAttrs(link, linkInfo)
 	case *GTP:
 		addGTPAttrs(link, linkInfo)
+	case *Ip6tun:
+		addIp6tunAttrs(link, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1441,6 +1443,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Vrf{}
 					case "gtp":
 						link = &GTP{}
+					case "ip6tnl":
+						link = &Ip6tun{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1482,6 +1486,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseBridgeData(link, data)
 					case "gtp":
 						parseGTPData(link, data)
+					case "ip6tnl":
+						parseIp6tunData(link, data)
 					}
 				}
 			}
@@ -2229,6 +2235,7 @@ func addIptunAttrs(iptun *Iptun, linkInfo *nl.RtAttr) {
 	if iptun.Link != 0 {
 		data.AddRtAttr(nl.IFLA_IPTUN_LINK, nl.Uint32Attr(iptun.Link))
 	}
+
 	data.AddRtAttr(nl.IFLA_IPTUN_PMTUDISC, nl.Uint8Attr(iptun.PMtuDisc))
 	data.AddRtAttr(nl.IFLA_IPTUN_TTL, nl.Uint8Attr(iptun.Ttl))
 	data.AddRtAttr(nl.IFLA_IPTUN_TOS, nl.Uint8Attr(iptun.Tos))
@@ -2486,6 +2493,67 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 		}
 	}
 	return vf
+}
+
+func addIp6tunAttrs(tun *Ip6tun, linkInfo *nl.RtAttr) {
+	if tun.FlowBased {
+		linkInfo.AddRtAttr(
+			nl.IFLA_IPTUN_COLLECT_METADATA,
+			boolAttr(tun.FlowBased))
+		return
+	}
+
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+
+	ip := tun.Local.To16()
+	if ip != nil {
+		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, []byte(ip))
+	}
+
+	ip = tun.Remote.To16()
+	if ip != nil {
+		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, []byte(ip))
+	}
+
+	if tun.Link != 0 {
+		data.AddRtAttr(nl.IFLA_IPTUN_LINK, nl.Uint32Attr(tun.Link))
+	}
+
+	if tun.Protocol != nil {
+		data.AddRtAttr(nl.IFLA_IPTUN_PROTO, nl.Uint8Attr(*tun.Protocol))
+	}
+
+	data.AddRtAttr(nl.IFLA_IPTUN_TTL, nl.Uint8Attr(tun.Ttl))
+	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_TYPE, nl.Uint16Attr(tun.EncapType))
+	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_FLAGS, nl.Uint16Attr(tun.EncapFlags))
+	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_SPORT, htons(tun.EncapSport))
+	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_DPORT, htons(tun.EncapDport))
+}
+
+func parseIp6tunData(link Link, data []syscall.NetlinkRouteAttr) {
+	ip6tun := link.(*Ip6tun)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_IPTUN_LOCAL:
+			ip6tun.Local = net.IP(datum.Value[0:8])
+		case nl.IFLA_IPTUN_REMOTE:
+			ip6tun.Remote = net.IP(datum.Value[0:8])
+		case nl.IFLA_IPTUN_TTL:
+			ip6tun.Ttl = uint8(datum.Value[0])
+		case nl.IFLA_IPTUN_ENCAP_SPORT:
+			ip6tun.EncapSport = ntohs(datum.Value[0:2])
+		case nl.IFLA_IPTUN_ENCAP_DPORT:
+			ip6tun.EncapDport = ntohs(datum.Value[0:2])
+		case nl.IFLA_IPTUN_ENCAP_TYPE:
+			ip6tun.EncapType = native.Uint16(datum.Value[0:2])
+		case nl.IFLA_IPTUN_ENCAP_FLAGS:
+			ip6tun.EncapFlags = native.Uint16(datum.Value[0:2])
+		case nl.IFLA_IPTUN_COLLECT_METADATA:
+			ip6tun.FlowBased = int8(datum.Value[0]) != 0
+		case nl.IFLA_IPTUN_PROTO:
+			ip6tun.SetProtocol(datum.Value[0])
+		}
+	}
 }
 
 // LinkSetBondSlave add slave to bond link via ioctl interface.
