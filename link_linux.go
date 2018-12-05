@@ -2295,6 +2295,10 @@ func addSittunAttrs(sittun *Sittun, linkInfo *nl.RtAttr) {
 		data.AddRtAttr(nl.IFLA_IPTUN_TTL, nl.Uint8Attr(sittun.Ttl))
 	}
 
+	if sittun.Protocol != nil {
+		data.AddRtAttr(nl.IFLA_IPTUN_PROTO, nl.Uint8Attr(*sittun.Protocol))
+	}
+
 	data.AddRtAttr(nl.IFLA_IPTUN_TOS, nl.Uint8Attr(sittun.Tos))
 	data.AddRtAttr(nl.IFLA_IPTUN_PMTUDISC, nl.Uint8Attr(sittun.PMtuDisc))
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_TYPE, nl.Uint16Attr(sittun.EncapType))
@@ -2325,6 +2329,8 @@ func parseSittunData(link Link, data []syscall.NetlinkRouteAttr) {
 			sittun.EncapSport = ntohs(datum.Value[0:2])
 		case nl.IFLA_IPTUN_ENCAP_DPORT:
 			sittun.EncapDport = ntohs(datum.Value[0:2])
+		case nl.IFLA_IPTUN_PROTO:
+			sittun.SetProtocol(datum.Value[0])
 		}
 	}
 }

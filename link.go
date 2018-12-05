@@ -760,6 +760,7 @@ type Sittun struct {
 	EncapFlags uint16
 	EncapSport uint16
 	EncapDport uint16
+	Protocol   *uint8
 }
 
 func (sittun *Sittun) Attrs() *LinkAttrs {
@@ -768,6 +769,10 @@ func (sittun *Sittun) Attrs() *LinkAttrs {
 
 func (sittun *Sittun) Type() string {
 	return "sit"
+}
+
+func (sittun *Sittun) SetProtocol(value uint8) {
+	sittun.Protocol = &value
 }
 
 type Vti struct {
