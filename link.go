@@ -750,17 +750,19 @@ func (iptun *Iptun) Type() string {
 
 type Sittun struct {
 	LinkAttrs
-	Link       uint32
-	Local      net.IP
-	Remote     net.IP
-	Ttl        uint8
-	Tos        uint8
-	PMtuDisc   uint8
-	EncapType  uint16
-	EncapFlags uint16
-	EncapSport uint16
-	EncapDport uint16
-	Protocol   *uint8
+	Link            uint32
+	Local           net.IP
+	Remote          net.IP
+	Ttl             uint8
+	Tos             uint8
+	PMtuDisc        uint8
+	EncapType       uint16
+	EncapFlags      uint16
+	EncapSport      uint16
+	EncapDport      uint16
+	Protocol        *uint8
+	EncapLimit      uint8
+	CollectMetadata bool
 }
 
 func (sittun *Sittun) Attrs() *LinkAttrs {
@@ -855,16 +857,18 @@ func (gtp *GTP) Type() string {
 
 type Ip6tun struct {
 	LinkAttrs
-	Ttl        uint8
-	Link       uint32
-	Local      net.IP
-	Remote     net.IP
-	EncapSport uint16
-	EncapDport uint16
-	EncapType  uint16
-	EncapFlags uint16
-	FlowBased  bool
-	Protocol   *uint8
+	Ttl             uint8
+	Link            uint32
+	Local           net.IP
+	Remote          net.IP
+	EncapSport      uint16
+	EncapDport      uint16
+	EncapType       uint16
+	EncapFlags      uint16
+	FlowBased       bool
+	Protocol        *uint8
+	EncapLimit      uint8
+	CollectMetadata bool
 }
 
 func (ip6tun *Ip6tun) Attrs() *LinkAttrs {

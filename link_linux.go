@@ -2299,6 +2299,14 @@ func addSittunAttrs(sittun *Sittun, linkInfo *nl.RtAttr) {
 		data.AddRtAttr(nl.IFLA_IPTUN_PROTO, nl.Uint8Attr(*sittun.Protocol))
 	}
 
+	if sittun.CollectMetadata {
+		data.AddRtAttr(nl.IFLA_IPTUN_COLLECT_METADATA, []byte{})
+	}
+
+	if sittun.EncapLimit != 0 {
+		data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_LIMIT, nl.Uint8Attr(sittun.EncapLimit))
+	}
+
 	data.AddRtAttr(nl.IFLA_IPTUN_TOS, nl.Uint8Attr(sittun.Tos))
 	data.AddRtAttr(nl.IFLA_IPTUN_PMTUDISC, nl.Uint8Attr(sittun.PMtuDisc))
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_TYPE, nl.Uint16Attr(sittun.EncapType))
@@ -2527,6 +2535,14 @@ func addIp6tunAttrs(tun *Ip6tun, linkInfo *nl.RtAttr) {
 
 	if tun.Protocol != nil {
 		data.AddRtAttr(nl.IFLA_IPTUN_PROTO, nl.Uint8Attr(*tun.Protocol))
+	}
+
+	if tun.CollectMetadata {
+		data.AddRtAttr(nl.IFLA_IPTUN_COLLECT_METADATA, []byte{})
+	}
+
+	if tun.EncapLimit != 0 {
+		data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_LIMIT, nl.Uint8Attr(tun.EncapLimit))
 	}
 
 	data.AddRtAttr(nl.IFLA_IPTUN_TTL, nl.Uint8Attr(tun.Ttl))
