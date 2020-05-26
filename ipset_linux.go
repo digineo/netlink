@@ -99,7 +99,7 @@ func (h *Handle) IpsetProtocol() (uint8, error) {
 		return 0, err
 	}
 
-	return ipsetUnserialize(msgs[0]).Protocol, nil
+	return ipsetUnserialize(msgs).Protocol, nil
 }
 
 func (h *Handle) IpsetCreate(setname, typename string, options IpsetCreateOptions) error {
@@ -164,7 +164,7 @@ func (h *Handle) IpsetList(name string) (*IPSetResult, error) {
 		return nil, err
 	}
 
-	result := ipsetUnserialize(msgs[0])
+	result := ipsetUnserialize(msgs)
 	return &result, nil
 }
 
@@ -177,8 +177,8 @@ func (h *Handle) IpsetListAll() ([]IPSetResult, error) {
 	}
 
 	result := make([]IPSetResult, len(msgs))
-	for _, msg := range msgs {
-		result = append(result, ipsetUnserialize(msg))
+	for i, msg := range msgs {
+		result[i].unserialize(msg)
 	}
 
 	return result, nil
@@ -233,7 +233,14 @@ func ipsetExecute(req *nl.NetlinkRequest) (msgs [][]byte, err error) {
 	return
 }
 
-func ipsetUnserialize(msg []byte) (result IPSetResult) {
+func ipsetUnserialize(msgs [][]byte) (result IPSetResult) {
+	for _, msg := range msgs {
+		result.unserialize(msg)
+	}
+	return result
+}
+
+func (result *IPSetResult) unserialize(msg []byte) {
 	result.Nfgenmsg = nl.DeserializeNfgenmsg(msg)
 
 	for attr := range nl.ParseAttributes(msg[4:]) {
@@ -258,8 +265,6 @@ func ipsetUnserialize(msg []byte) (result IPSetResult) {
 			log.Printf("unknown ipset attribute from kernel: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
 		}
 	}
-
-	return result
 }
 
 func (result *IPSetResult) parseAttrData(data []byte) {
